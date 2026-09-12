@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💬 WormGPT — واجهة الدردشة</title>
+<style>
+/* ═══════════ المتغيرات ═══════════ */
+:root {
+  --bg-dark: #0a0a0f;
+  --bg-panel: #12121a;
+  --bg-card: #1a1a24;
+  --bg-input: #0f0f18;
+  --border: #2a2a3a;
+  --border-glow: #3a3a5a;
+  --text-primary: #e8e8f0;
+  --text-secondary: #9090a8;
+  --text-muted: #5a5a72;
+  --accent: #ff3b5c;
+  --accent-glow: rgba(255, 59, 92, 0.3);
+  --accent2: #7c3aed;
+  --accent2-glow: rgba(124, 58, 237, 0.3);
+  --success: #10b981;
+  --success-glow: rgba(16, 185, 129, 0.3);
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --font: 'Segoe UI', 'Tahoma', system-ui, sans-serif;
+  --font-mono: 'Courier New', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  font-family: var(--font);
+  background: var(--bg-dark);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* ═══════════ الخلفية ═══════════ */
+.bg-effects {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.15;
+  animation: float 20s infinite alternate ease-in-out;
+}
+.bg-orb:nth-child(1) {
+  width: 500px; height: 500px;
+  background: var(--accent);
+  top: -200px; right: -100px;
+  animation-duration: 25s;
+}
+.bg-orb:nth-child(2) {
+  width: 400px; height: 400px;
+  background: var(--accent2);
+  bottom: -150px; left: -100px;
+  animation-duration: 20s;
+  animation-delay: 5s;
+}
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(50px, -50px) scale(1.1); }
+}
+
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 59, 92, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 59, 92, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ═══════════ الحاوية الرئيسية ═══════════ */
+.app {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 900px;
+  margin: 0 auto;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+/* ═══════════ الهيدر ═══════════ */
+.header {
+  padding: 16px 20px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+.header-info h1 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.header-info p {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+.status-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  margin-left: 6px;
+  animation: pulse 2s infinite;
+}
+.status-dot.offline { background: var(--danger); animation: none; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--success-glow); }
+  50% { opacity: 0.5; box-shadow: 0 0 2px var(--success-glow); }
+}
+
+.header-right {
+  display: flex;
+  gap: 8px;
+}
+.icon-btn {
+  width: 40px; height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  transition: all 0.2s;
+  font-family: var(--font);
+}
+.icon-btn:hover {
+  background: var(--border);
+  color: var(--text-primary);
+  border-color: var(--border-glow);
+  transform: translateY(-1px);
+}
+.icon-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: 0 0 15px var(--accent-glow);
+}
+
+/* ═══════════ شريط الأدوات ═══════════ */
+.toolbar {
+  padding: 10px 20px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.toolbar-label {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.toolbar-btn {
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  font-family: var(--font);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.toolbar-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255, 59, 92, 0.05);
+}
+.toolbar-btn.success:hover {
+  border-color: var(--success);
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+/* ═══════════ منطقة الدردشة ═══════════ */
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scroll-behavior: smooth;
+}
+.chat-area::-webkit-scrollbar { width: 6px; }
+.chat-area::-webkit-scrollbar-track { background: transparent; }
+.chat-area::-webkit-scrollbar-thumb {
+  background: var(--border-glow);
+  border-radius: 3px;
+}
+.chat-area::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* رسالة ترحيب */
+.welcome {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--text-muted);
+}
+.welcome .big-icon {
+  font-size: 56px;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 20px var(--accent-glow));
+}
+.welcome h2 {
+  font-size: 20px;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.welcome p {
+  font-size: 13px;
+  line-height: 1.7;
+  max-width: 400px;
+  margin: 0 auto;
+}
+.welcome .hints {
+  margin-top: 20px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.hint-chip {
+  padding: 8px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.hint-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+
+/* فقاعة الرسالة */
+.msg {
+  display: flex;
+  gap: 10px;
+  max-width: 85%;
+  animation: msgIn 0.3s ease;
+}
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.msg.user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+.msg.bot {
+  align-self: flex-start;
+}
+
+.msg-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: bold;
+}
+.msg.user .msg-avatar {
+  background: linear-gradient(135deg, var(--accent2), #5b21b6);
+}
+.msg.bot .msg-avatar {
+  background: linear-gradient(135deg, var(--accent), #7f1d1d);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.msg-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  font-size: 14px;
+  line-height: 1.7;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  position: relative;
+  max-width: 100%;
+}
+.msg.user .msg-content {
+  background: linear-gradient(135deg, #2a1a3a, #1a1a2a);
+  border-color: var(--accent2);
+  border-top-left-radius: 6px;
+}
+.msg.bot .msg-content {
+  background: var(--bg-card);
+  border-color: var(--border);
+  border-top-right-radius: 6px;
+}
+.msg-content code {
+  background: var(--bg-input);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+.msg-content pre {
+  background: var(--bg-input);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin: 8px 0;
+  border: 1px solid var(--border);
+}
+.msg-content pre code {
+  background: none;
+  padding: 0;
+  color: var(--text-primary);
+}
+
+.msg-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: left;
+}
+.msg.user .msg-time { text-align: right; }
+
+/* مؤشر الكتابة */
+.typing {
+  display: flex;
+  gap: 4px;
+  padding: 14px 18px;
+}
+.typing span {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: typing 1.4s infinite;
+}
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-8px); opacity: 1; }
+}
+
+/* ═══════════ منطقة الإدخال ═══════════ */
+.input-area {
+  padding: 14px 20px 18px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.input-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.input-wrapper {
+  flex: 1;
+  position: relative;
+}
+textarea {
+  width: 100%;
+  min-height: 48px;
+  max-height: 150px;
+  padding: 14px 16px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  transition: all 0.2s;
+}
+textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+textarea::placeholder { color: var(--text-muted); }
+
+.send-btn {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  box-shadow: 0 4px 15px var(--accent-glow);
+}
+.send-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+  box-shadow: 0 6px 25px var(--accent-glow);
+}
+.send-btn:active:not(:disabled) { transform: scale(0.95); }
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.input-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ═══════════ الإشعارات ═══════════ */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  width: 90%;
+  max-width: 400px;
+}
+.toast {
+  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 13px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  animation: toastIn 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+.toast.success { border-color: var(--success); }
+.toast.error { border-color: var(--danger); }
+.toast.warning { border-color: var(--warning); }
+.toast.info { border-color: var(--accent2); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════ اللوحة الجانبية ═══════════ */
+.panel-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+  display: none;
+  backdrop-filter: blur(4px);
+}
+.panel-overlay.open { display: block; }
+
+.panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 320px;
+  max-width: 85%;
+  height: 100vh;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  z-index: 1001;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.panel.open { transform: translateX(0); }
+
+.panel-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.panel-header h3 {
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-section {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-section h4 {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.panel-item {
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.panel-item .label {
+  color: var(--text-muted);
+}
+.panel-item .value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.panel-btn {
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+.panel-btn:hover {
+  border-color: var(--accent);
+  background: rgba(255, 59, 92, 0.05);
+}
+.panel-btn.danger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.05);
+}
+.panel-btn.success:hover {
+  border-color: var(--success);
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.input-small {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  margin-bottom: 8px;
+}
+.input-small:focus {
+  border-color: var(--accent);
+}
+
+/* ═══════════ مؤشر الاتصال ═══════════ */
+.conn-indicator {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  padding: 8px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* ═══════════ الجوال ═══════════ */
+@media (max-width: 600px) {
+  .app { border: none; }
+  .header { padding: 12px 14px; }
+  .header-info h1 { font-size: 15px; }
+  .logo { width: 38px; height: 38px; font-size: 18px; }
+  .chat-area { padding: 14px; }
+  .msg { max-width: 92%; }
+  .msg-content { font-size: 13px; padding: 10px 14px; }
+  .input-area { padding: 12px 14px 14px; }
+  .toolbar { padding: 8px 14px; gap: 6px; }
+  .toolbar-btn { font-size: 10px; padding: 5px 10px; }
+  .conn-indicator { bottom: 10px; left: 10px; font-size: 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ خلفية ═══════════ -->
+<div class="bg-effects">
+  <div class="bg-orb"></div>
+  <div class="bg-orb"></div>
+  <div class="bg-grid"></div>
+</div>
+
+<!-- ═══════════ الإشعارات ═══════════ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ═══════════ اللوحة الجانبية ═══════════ -->
+<div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+<div class="panel" id="panel">
+  <div class="panel-header">
+    <h3>⚙️ الإعدادات</h3>
+    <button class="icon-btn" onclick="closePanel()">✕</button>
+  </div>
+
+  <div class="panel-section">
+    <h4>🆔 معرف المستخدم</h4>
+    <input type="text" class="input-small" id="userIdInput" placeholder="123456">
+    <button class="panel-btn success" onclick="saveUserId()">💾 حفظ المعرف</button>
+  </div>
+
+  <div class="panel-section">
+    <h4>📊 معلومات الجلسة</h4>
+    <div class="panel-item">
+      <span class="label">المعرف</span>
+      <span class="value" id="infoUserId">—</span>
+    </div>
+    <div class="panel-item">
+      <span class="label">الرسائل</span>
+      <span class="value" id="infoMessages">—</span>
+    </div>
+    <div class="panel-item">
+      <span class="label">الحالة</span>
+      <span class="value" id="infoStatus">—</span>
+    </div>
+    <button class="panel-btn" onclick="getSessionInfo()">🔄 تحديث المعلومات</button>
+  </div>
+
+  <div class="panel-section">
+    <h4>🛠 إدارة الجلسة</h4>
+    <button class="panel-btn success" onclick="createSession()">🆕 إنشاء جلسة</button>
+    <button class="panel-btn" onclick="resetMemory()">🗑 مسح الذاكرة</button>
+    <button class="panel-btn danger" onclick="deleteSession()">❌ حذف الجلسة</button>
+  </div>
+
+  <div class="panel-section">
+    <h4>🔍 الخدمة</h4>
+    <button class="panel-btn" onclick="checkHealth()">💚 فحص الخدمة</button>
+    <button class="panel-btn" onclick="getApiInfo()">ℹ️ معلومات API</button>
+    <button class="panel-btn" onclick="window.open('http://51.75.118.171:20085/docs', '_blank')">📖 Swagger</button>
+    <button class="panel-btn" onclick="window.open('http://51.75.118.171:20085/redoc', '_blank')">📁 ReDoc</button>
+  </div>
+
+  <div class="panel-section">
+    <h4>💬 الدردشة</h4>
+    <button class="panel-btn danger" onclick="clearChat()">🗑 مسح المحادثة</button>
+  </div>
+</div>
+
+<!-- ═══════════ التطبيق ═══════════ -->
+<div class="app">
+
+  <!-- الهيدر -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">💬</div>
+      <div class="header-info">
+        <h1>WormGPT</h1>
+        <p>v2.0.0 <span class="status-dot" id="statusDot"></span></p>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" onclick="openPanel()" title="الإعدادات">⚙️</button>
+      <button class="icon-btn" onclick="clearChat()" title="مسح">🗑</button>
+    </div>
+  </div>
+
+  <!-- شريط الأدوات -->
+  <div class="toolbar">
+    <span class="toolbar-label">سريع:</span>
+    <button class="toolbar-btn" onclick="sendQuick('مرحبا')">👋 مرحبا</button>
+    <button class="toolbar-btn" onclick="sendQuick('كيف حالك؟')">❓ كيف حالك</button>
+    <button class="toolbar-btn" onclick="sendQuick('ما اسمك؟')">🤖 اسمك</button>
+    <button class="toolbar-btn success" onclick="checkHealth()">💚 فحص</button>
+  </div>
+
+  <!-- الدردشة -->
+  <div class="chat-area" id="chatArea">
+    <div class="welcome">
+      <div class="big-icon">💬</div>
+      <h2>مرحباً بك في WormGPT</h2>
+      <p>تحدث مع الذكاء الاصطناعي مباشرة. اكتب رسالتك في الأسفل واضغط إرسال.</p>
+      <div class="hints">
+        <div class="hint-chip" onclick="sendQuick('مرحبا')">👋 مرحبا</div>
+        <div class="hint-chip" onclick="sendQuick('اكتب لي كود بايثون')">💻 كود بايثون</div>
+        <div class="hint-chip" onclick="sendQuick('اشرح لي الذكاء الاصطناعي')">🧠 شرح AI</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الإدخال -->
+  <div class="input-area">
+    <div class="input-row">
+      <div class="input-wrapper">
+        <textarea id="messageInput" placeholder="اكتب رسالتك هنا..." rows="1"></textarea>
+      </div>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+    </div>
+    <div class="input-footer">
+      <span>💡 Enter للإرسال • Shift+Enter لسطر جديد</span>
+      <span id="charCount">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- مؤشر الاتصال -->
+<div class="conn-indicator">
+  <span class="status-dot" id="connDot"></span>
+  <span id="connText">متصل</span>
+</div>
+
+<script>
+/* ═══════════ الإعدادات ═══════════ */
+const API_BASE = 'http://51.75.118.171:20085';
+let userId = localStorage.getItem('wormgpt_user_id') || 'user_' + Math.floor(Math.random() * 1000000);
+let isProcessing = false;
+let healthStatus = false;
+
+localStorage.setItem('wormgpt_user_id', userId);
+
+/* ═══════════ الإشعارات ═══════════ */
+function toast(msg, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  t.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${msg}</span>`;
+  container.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+/* ═══════════ الدردشة ═══════════ */
+function addMessage(text, isUser = false) {
+  const chat = document.getElementById('chatArea');
+  
+  // إزالة رسالة الترحيب عند أول رسالة
+  const welcome = chat.querySelector('.welcome');
+  if (welcome) welcome.remove();
+
+  const time = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+  
+  const msg = document.createElement('div');
+  msg.className = 'msg ' + (isUser ? 'user' : 'bot');
+  
+  // معالجة النص: كود
+  let formatted = escapeHtml(text);
+  formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  
+  msg.innerHTML = `
+    <div class="msg-avatar">${isUser ? '👤' : '🤖'}</div>
+    <div class="msg-content">
+      ${formatted}
+      <div class="msg-time">${time}</div>
+    </div>
+  `;
+  
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const chat = document.getElementById('chatArea');
+  const typing = document.createElement('div');
+  typing.className = 'msg bot';
+  typing.id = 'typingIndicator';
+  typing.innerHTML = `
+    <div class="msg-avatar">🤖</div>
+    <div class="msg-content typing">
+      <span></span><span></span><span></span>
+    </div>
+  `;
+  chat.appendChild(typing);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function hideTyping() {
+  const t = document.getElementById('typingIndicator');
+  if (t) t.remove();
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/* ═══════════ إرسال رسالة ═══════════ */
+async function sendMessage() {
+  if (isProcessing) return;
+  
+  const input = document.getElementById('messageInput');
+  const message = input.value.trim();
+  
+  if (!message) {
+    toast('اكتب رسالة أولاً', 'warning');
+    return;
+  }
+  
+  isProcessing = true;
+  document.getElementById('sendBtn').disabled = true;
+  
+  addMessage(message, true);
+  input.value = '';
+  updateCharCount();
+  
+  showTyping();
+  
+  try {
+    const response = await fetch(`${API_BASE}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        message: message
+      })
+    });
+    
+    hideTyping();
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // استخراج الرد
+    let reply = data.response || data.reply || data.message || data.answer || data.text || JSON.stringify(data);
+    
+    addMessage(reply, false);
+    
+  } catch (error) {
+    hideTyping();
+    console.error('خطأ:', error);
+    toast('فشل الاتصال بالخادم: ' + error.message, 'error');
+    addMessage('❌ حدث خطأ في الاتصال بالخادم. تأكد من تشغيل الـ API.', false);
+  } finally {
+    isProcessing = false;
+    document.getElementById('sendBtn').disabled = false;
+    input.focus();
+  }
+}
+
+function sendQuick(text) {
+  document.getElementById('messageInput').value = text;
+  sendMessage();
+}
+
+/* ═══════════ عدّاد الأحرف ═══════════ */
+function updateCharCount() {
+  const count = document.getElementById('messageInput').value.length;
+  document.getElementById('charCount').textContent = count + ' حرف';
+}
+
+document.getElementById('messageInput').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+  updateCharCount();
+});
+
+document.getElementById('messageInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+/* ═══════════ مسح المحادثة ═══════════ */
+function clearChat() {
+  const chat = document.getElementById('chatArea');
+  chat.innerHTML = `
+    <div class="welcome">
+      <div class="big-icon">💬</div>
+      <h2>مرحباً بك في WormGPT</h2>
+      <p>تحدث مع الذكاء الاصطناعي مباشرة. اكتب رسالتك في الأسفل واضغط إرسال.</p>
+      <div class="hints">
+        <div class="hint-chip" onclick="sendQuick('مرحبا')">👋 مرحبا</div>
+        <div class="hint-chip" onclick="sendQuick('اكتب لي كود بايثون')">💻 كود بايثون</div>
+        <div class="hint-chip" onclick="sendQuick('اشرح لي الذكاء الاصطناعي')">🧠 شرح AI</div>
+      </div>
+    </div>
+  `;
+  toast('تم مسح المحادثة', 'success');
+}
+
+/* ═══════════ اللوحة الجانبية ═══════════ */
+function openPanel() {
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('panelOverlay').classList.add('open');
+  document.getElementById('userIdInput').value = userId;
+  document.getElementById('infoUserId').textContent = userId;
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('panelOverlay').classList.remove('open');
+}
+
+function saveUserId() {
+  const newId = document.getElementById('userIdInput').value.trim();
+  if (!newId) {
+    toast('أدخل معرفاً صالحاً', 'warning');
+    return;
+  }
+  userId = newId;
+  localStorage.setItem('wormgpt_user_id', userId);
+  document.getElementById('infoUserId').textContent = userId;
+  toast('تم حفظ المعرف: ' + userId, 'success');
+}
+
+/* ═══════════ API - فحص الخدمة ═══════════ */
+async function checkHealth() {
+  try {
+    const response = await fetch(`${API_BASE}/health`);
+    const data = await response.json();
+    healthStatus = true;
+    document.getElementById('statusDot').classList.remove('offline');
+    document.getElementById('connDot').classList.remove('offline');
+    document.getElementById('connText').textContent = 'متصل';
+    toast('✅ الخدمة تعمل: ' + JSON.stringify(data).substring(0, 50), 'success');
+    return data;
+  } catch (error) {
+    healthStatus = false;
+    document.getElementById('statusDot').classList.add('offline');
+    document.getElementById('connDot').classList.add('offline');
+    document.getElementById('connText').textContent = 'غير متصل';
+    toast('❌ الخدمة لا تعمل: ' + error.message, 'error');
+    return null;
+  }
+}
+
+/* ═══════════ API - معلومات API ═══════════ */
+async function getApiInfo() {
+  try {
+    const response = await fetch(`${API_BASE}/api`);
+    const data = await response.json();
+    toast('ℹ️ معلومات API: ' + JSON.stringify(data).substring(0, 60), 'info');
+    console.log('API Info:', data);
+  } catch (error) {
+    toast('فشل جلب معلومات API', 'error');
+  }
+}
+
+/* ═══════════ API - إنشاء جلسة ═══════════ */
+async function createSession() {
+  try {
+    const response = await fetch(`${API_BASE}/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId })
+    });
+    const data = await response.json();
+    toast('✅ تم إنشاء الجلسة', 'success');
+    console.log('Session:', data);
+  } catch (error) {
+    toast('فشل إنشاء الجلسة: ' + error.message, 'error');
+  }
+}
+
+/* ═══════════ API - معلومات الجلسة ═══════════ */
+async function getSessionInfo() {
+  try {
+    const response = await fetch(`${API_BASE}/session/${userId}`);
+    const data = await response.json();
+    
+    document.getElementById('infoUserId').textContent = userId;
+    document.getElementById('infoMessages').textContent = data.message_count || data.messages || '—';
+    document.getElementById('infoStatus').textContent = data.status || 'نشطة';
+    
+    toast('✅ تم تحديث معلومات الجلسة', 'success');
+    console.log('Session Info:', data);
+  } catch (error) {
+    toast('فشل جلب معلومات الجلسة', 'error');
+  }
+}
+
+/* ═══════════ API - مسح الذاكرة ═══════════ */
+async function resetMemory() {
+  try {
+    const response = await fetch(`${API_BASE}/reset`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId })
+    });
+    const data = await response.json();
+    toast('✅ تم مسح الذاكرة', 'success');
+    console.log('Reset:', data);
+  } catch (error) {
+    toast('فشل مسح الذاكرة', 'error');
+  }
+}
+
+/* ═══════════ API - حذف الجلسة ═══════════ */
+async function deleteSession() {
+  if (!confirm('هل أنت متأكد من حذف الجلسة؟')) return;
+  try {
+    const response = await fetch(`${API_BASE}/session/${userId}`, {
+      method: 'DELETE'
+    });
+    const data = await response.json();
+    toast('✅ تم حذف الجلسة', 'success');
+    console.log('Delete:', data);
+  } catch (error) {
+    toast('فشل حذف الجلسة', 'error');
+  }
+}
+
+/* ═══════════ فحص دوري ═══════════ */
+checkHealth();
+setInterval(checkHealth, 30000);
+
+/* ═══════════ التركيز ═══════════ */
+document.getElementById('messageInput').focus();
+</script>
+</body>
+</html>
